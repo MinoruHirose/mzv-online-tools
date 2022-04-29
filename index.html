@@ -3,16 +3,16 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width">
-    <title>SageMathCell</title>
+    <title>Multiple Zeta Values online tools</title>
     <script src="https://sagecell.sagemath.org/static/embedded_sagecell.js"></script>
     <script>
     // Make the div with id 'mycell' a Sage cell
     sagecell.makeSagecell({inputLocation:  'div.precompute',
                            editor: 'codemirror-readonly',
-                           hide: ['output'],
+                           hide: ['output', 'editor'],
                            linked: 'true',
                            linkKey: 'main',
-                           evalButtonText: 'Load preliminary code'});
+                           evalButtonText: 'Activate'});
     // Make *any* div with class 'compute' a Sage cell
     sagecell.makeSagecell({inputLocation: 'div.compute',
                            linked: 'true',
@@ -33,8 +33,7 @@
   </head>
   <body>
   <h1>MZV tools</h1>
-  <h2>Preliminary code</h2>
-  Click the &ldquo;Load preliminary code&rdquo; button below to start. If you want to excute on your own computer, copy the below code.
+  Click the &ldquo;Activate&rdquo; button below first.
     <div class="precompute"><script type="text/x-sage">
 
 import functools
@@ -461,9 +460,15 @@ def Hoffman_dual(ks):
 </div>
 
 <h2>Your code</h2>
-Type your own computation below and click &ldquo;Evaluate&rdquo;.
     <div class="compute"><script type="text/x-sage"></script></div>
 <h2>Usage</h2>
+<ol>
+  <li> Click the &ldquo;Activate&rdquo; button </li>
+  <li> Type your code at the above box.</li>
+  <li> Click &ldquo;Evaluate&rdquo; button. </li>
+  <li> Repeat 2 and 3.</li>
+</ol>
+The followings are examples of usage. The author of this page is <a href="https://sites.google.com/view/minoru-hirose">Minoru Hirose</a>. See <a href="https://github.com/MinoruHirose/mzv-online-tools">github page</a> for the source code.
 <h3> Symbolic Expression for Multiple Zeta(-Star) Value</h3>
 <div>
 <pre class="example"><code>
