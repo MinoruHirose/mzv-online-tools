@@ -98,7 +98,7 @@ def LiftIndex(zero):
 def LiftWord(zero):
     def decorator(func):
         def obj_to_list_of_monomials(obj):
-            if type(obj)==FormalSum:
+            if is_FormalSum(obj):
                 obj = index_to_word(obj)
 
             dic = obj.monomial_coefficients()
@@ -152,8 +152,11 @@ class FormalRingElement(CommutativeRingElement):
     def __init__(self, parent, data):
         if parent is None:
             raise ValueError("The parent must be provided")
-        self.data = data
+        self.data = FormalSum([]) + data
         return CommutativeRingElement.__init__(self, parent)
+
+    def __eq__(self, other):
+        return (self - other).data == FormalSum([])
 
     def _repr_(self):
         ret = ""
@@ -218,7 +221,12 @@ class FormalRing(UniqueRepresentation, CommutativeRing):
 
     def _coerce_map_from_(self, S):
         def coerce(R, x):
-            return R.Element(parent = self, data = x*FormalSum([(1, ())]))
+            try:
+                ret = R.Element(parent = self, data = x*FormalSum([(1, ())]))
+            except:
+                print(f"Failed for coercing: R = {R}, S = {S}, x = {x}")
+                assert False
+            return ret
         return coerce
 
 @lru_cache(maxsize = None)
@@ -242,7 +250,7 @@ def LiftZeta(zero):
                     u = word_to_index(u)
                 if is_FormalSum(u):
                     return zero + sum( c*func(*v.ks, **kwags) for c,v in u )
-            return func(*args)
+            return func(*args,**kwags)
         return wrapper
     return decorator
 
@@ -323,39 +331,67 @@ def _modulo_zeta2(fr):
     FR = FormalRing(QQ)
     return FR.Element(parent = FR, data = new_data )
 
-@LiftZeta(zero = FormalRing(QQ)(0) )
-@lru_cache(maxsize = None)
-def shuffle_regularized_mzv(*ks, t = 0):
-    return mzv(shuffle_regularization(index(ks) ), t = t )
+def star_index(ks):
+    def rec(ls):
+        if len(ls)<=1:
+            return [ls]
+        return [ls[:1]+seq for seq in rec(ls[1:])] + rec((ls[0]+ls[1],) + ls[2:])
+    return rec(tuple(ks) )
 
 @LiftZeta(zero = FormalRing(QQ)(0) )
 @lru_cache(maxsize = None)
-def stuffle_regularized_mzv(*ks, t = 0):
-    return mzv(stuffle_regularization(index(ks) ), t = t )
+def shuffle_regularized_mzv(*ks):
+    return mzv(shuffle_regularization(index(ks) ) )
 
 @LiftZeta(zero = FormalRing(QQ)(0) )
 @lru_cache(maxsize = None)
-def shuffle_regularized_symmetric_mzv(*ks, t = 0):
-    t = QQ(t)
+def shuffle_regularized_mzsv(*ks):
+    return FormalRing(QQ)(0) + sum( shuffle_regularized_mzv(index(*ls) )  for ls in star_index(ks))
+
+@LiftZeta(zero = FormalRing(QQ)(0) )
+@lru_cache(maxsize = None)
+def stuffle_regularized_mzv(*ks):
+    return mzv(stuffle_regularization(index(ks) ) )
+
+@LiftZeta(zero = FormalRing(QQ)(0) )
+@lru_cache(maxsize = None)
+def stuffle_regularized_mzsv(*ks):
+    return FormalRing(QQ)(0) + sum( stuffle_regularized_mzv(index(*ls) )  for ls in star_index(ks))
+
+@LiftZeta(zero = FormalRing(QQ)(0) )
+@lru_cache(maxsize = None)
+def shuffle_regularized_symmetric_mzv(*ks):
     ret = FormalRing(QQ)(0)
     for j in (0..len(ks) ):
-        ret += (-1)^sum(ks[j:]) * shuffle_regularized_mzv(index(ks[:j]), t = t)  * shuffle_regularized_mzv(index(ks[j:][::-1]), t=t)
+        ret += (-1)^sum(ks[j:]) * shuffle_regularized_mzv(index(ks[:j]) )  * shuffle_regularized_mzv(index(ks[j:][::-1]) )
     return ret
 
 @LiftZeta(zero = FormalRing(QQ)(0) )
 @lru_cache(maxsize = None)
-def stuffle_regularized_symmetric_mzv(*ks, t = 0):
-    t = QQ(t)
+def shuffle_regularized_symmetric_mzsv(*ks):
+    return FormalRing(QQ)(0) + sum( shuffle_regularized_symmetric_mzv(index(*ls) )  for ls in star_index(ks))
+
+
+@LiftZeta(zero = FormalRing(QQ)(0) )
+@lru_cache(maxsize = None)
+def stuffle_regularized_symmetric_mzv(*ks):
     ret = FormalRing(QQ)(0)
     for j in (0..len(ks) ):
-        ret += (-1)^sum(ks[j:]) * stuffle_regularized_mzv(index(ks[:j]), t = t)  * stuffle_regularized_mzv(index(ks[j:][::-1]), t=t)
+        ret += (-1)^sum(ks[j:]) * stuffle_regularized_mzv(index(ks[:j]) )  * stuffle_regularized_mzv(index(ks[j:][::-1]) )
     return ret
 
 @LiftZeta(zero = FormalRing(QQ)(0) )
 @lru_cache(maxsize = None)
-def symmetric_mzv(*ks, t = 0):
-    return _modulo_zeta2( shuffle_regularized_symmetric_mzv(index(ks), t=t) )
+def stuffle_regularized_symmetric_mzsv(*ks):
+    return FormalRing(QQ)(0) + sum( stuffle_regularized_symmetric_mzv(index(*ls) )  for ls in star_index(ks))
 
+@LiftZeta(zero = FormalRing(QQ)(0) )
+@lru_cache(maxsize = None)
+def symmetric_mzv(*ks):
+    return _modulo_zeta2( shuffle_regularized_symmetric_mzv(index(ks) ) )
+
+def symmetric_mzsv(*ks):
+    return _modulo_zeta2( shuffle_regularized_symmetric_mzsv(index(ks) ) )
 
 @total_ordering
 class monoindex:
@@ -452,6 +488,42 @@ def Hoffman_dual(ks):
             assert False
     return index(ret)
 
+def test():
+    assert mzv(1,2) == ζ(3)
+    assert mzv(2,3) == 1/2*ζ(3)*π^2 - 11/2*ζ(5)
+    assert ζ(2,3) == 1/2*ζ(3)*π^2 - 11/2*ζ(5)
+    assert mzsv(1,2) == 2*ζ(3)
+    assert mzv(1,2,t=1) == 2*ζ(3)
+
+    assert stuffle(index(2), index(5)) == index(2,5) + index(5,2) + index(7)
+    assert stuffle(index(2,3), index(5)) == index(2,3,5) + index(2,5,3) + index(2,8) + index(5,2,3) + index(7,3)
+    assert stuffle(-e1*e0, -e1*e0*e0*e0*e0) == -e1*e0^6 + e1*e0^4*e1*e0 + e1*e0*e1*e0^4
+
+    assert shuffle(e1*e0, e1 ) == e1*e0*e1 + 2*e1^2*e0
+    assert shuffle(index(2), index(1)) == index(2,1) + 2*index(1,2)
+
+    assert dual(e1*e0*e0*e1*e0) == -e1*e0*e1^2*e0
+    assert dual(index(3,2)) == index(2,1,2)
+
+    assert Hoffman_dual( index(3,4) ) == index(1,1,2,1,1,1)
+
+    assert shuffle_regularization( index(5,1) ) == -index(4,2) - index(3,3) - index(2,4) - 2*index(1,5)
+    assert shuffle_regularization( shuffle(index(1,1), index(2,3) ) ) == 0
+
+    assert shuffle_regularized_mzv(2,1) == -2*ζ(3)
+
+    assert stuffle_regularization( index(5,1) ) == -index(1,5) - index(6)
+    assert stuffle_regularized_mzv(1,1) == -1/12*π^2
+
+    assert shuffle_regularized_symmetric_mzv(3,8) == -4/315*ζ(5)*π^6 - 1/3*ζ(7)*π^4 - 12*ζ(9)*π^2 + 165*ζ(11)
+    assert stuffle_regularized_symmetric_mzv(3,8) == -4/315*ζ(5)*π^6 - 1/3*ζ(7)*π^4 - 12*ζ(9)*π^2 + 165*ζ(11)
+    assert symmetric_mzv(3,8) == 165*ζ(11)
+
+    assert shuffle_regularized_symmetric_mzv(1,1) == 0
+    assert shuffle_regularized_symmetric_mzsv(1,1) == 1/3*π^2
+    assert stuffle_regularized_symmetric_mzv(1,1) == -1/6*π^2
+    assert stuffle_regularized_symmetric_mzsv(1,1) == 1/6*π^2
+
 
 ζ = mzv
 π = lift_to_fr("π")
@@ -469,7 +541,7 @@ def Hoffman_dual(ks):
   <li> Repeat 2 and 3.</li>
 </ol>
 The followings are examples of usage. The author of this page is <a href="https://sites.google.com/view/minoru-hirose">Minoru Hirose</a>. See <a href="https://github.com/MinoruHirose/mzv-online-tools">github page</a> for the source code.
-<h3> Symbolic Expression for Multiple Zeta(-Star) Value</h3>
+<h3> Symbolic expression for multiple zeta(-star) Value</h3>
 <div>
 <pre class="example"><code>
 >>> mzv(1,2)
@@ -482,10 +554,10 @@ The followings are examples of usage. The author of this page is <a href="https:
 1/2*ζ(3)*π^2 - 11/2*ζ(5)
 
 >>> mzsv(1,2)
-2*ζ(3)*π^2
+2*ζ(3)
 
 >> mzv(1,2,t=1)
-2*ζ(3)*π^2
+2*ζ(3)
 
 </code>
 </pre>
@@ -531,7 +603,7 @@ index(2,1,2)
 </pre>
 </div>
 
-<h3> Hoffman-Dual of index</h3>
+<h3> Hoffman-dual of index</h3>
 <div>
 <pre class="example"><code>
 >>> Hoffman_dual( index(3,4) )
@@ -567,7 +639,7 @@ index(1,1,2,1,1,1)
 </pre>
 </div>
 
-<h3> Symmetric multiple zeta value </h3>
+<h3> Symbolic expression for symmetric multiple zeta(-star) value </h3>
 <div>
 <pre class="example"><code>
 >>> shuffle_regularized_symmetric_mzv(3,8)
@@ -578,6 +650,19 @@ index(1,1,2,1,1,1)
 
 >>> symmetric_mzv(3,8)
 165*ζ(11)
+
+>>> shuffle_regularized_symmetric_mzv(1,1)
+0
+
+>>> shuffle_regularized_symmetric_mzsv(1,1) #star-value
+1/3*π^2
+
+>>> stuffle_regularized_symmetric_mzv(1,1)
+-1/6*π^2
+
+>>> shuffle_regularized_symmetric_mzsv(1,1) # star-value
+1/6*π^2
+
 </code>
 </pre>
 </div>
